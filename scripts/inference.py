@@ -23,7 +23,7 @@ from accelerate.utils import set_seed
 from latentsync.whisper.audio2feature import Audio2Feature
 
 # 检查GPU是否支持float16，以及CUDA是否可用
-is_fp16_supported = torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 7
+is_fp16_supported = torch.cuda.is_available() and torch.cuda.get_device_capability()[0] > 7
 device = "cuda" if torch.cuda.is_available() else "cpu"  # 根据CUDA可用性设置设备
 
 # 设置数据类型
