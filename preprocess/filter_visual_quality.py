@@ -55,6 +55,7 @@ def read_video(video_path: str):
 
 def func(paths, device_id):
     device = f"cuda:{device_id}"
+    torch.cuda.set_device(device_id)
 
     model_hyper = HyperNet(16, 112, 224, 112, 56, 28, 14, 7).to(device)
     model_hyper.train(False)

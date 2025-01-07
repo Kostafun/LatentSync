@@ -47,6 +47,7 @@ def adjust_offset(video_input: str, video_output: str, av_offset: int, fps: int 
 def func(sync_conf_threshold, paths, device_id, process_temp_dir):
     os.makedirs(process_temp_dir, exist_ok=True)
     device = f"cuda:{device_id}"
+    torch.cuda.set_device(device_id)
 
     syncnet = SyncNetEval(device=device)
     syncnet.loadParameters("checkpoints/auxiliary/syncnet_v2.model")
