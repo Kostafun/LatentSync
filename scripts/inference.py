@@ -22,6 +22,13 @@ from diffusers.utils.import_utils import is_xformers_available
 from accelerate.utils import set_seed
 from latentsync.whisper.audio2feature import Audio2Feature
 
+# 检查GPU是否支持float16，以及CUDA是否可用
+is_fp16_supported = torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 7
+device = "cuda" if torch.cuda.is_available() else "cpu"  # 根据CUDA可用性设置设备
+
+# 设置数据类型
+dtype = torch.float16 if is_fp16_supported else torch.float32
+
 
 def main(config, args):
     print(f"Input video path: {args.video_path}")
@@ -37,9 +44,9 @@ def main(config, args):
     else:
         raise NotImplementedError("cross_attention_dim must be 768 or 384")
 
-    audio_encoder = Audio2Feature(model_path=whisper_model_path, device="cuda", num_frames=config.data.num_frames)
+    audio_encoder = Audio2Feature(model_path=whisper_model_path, device=device, num_frames=config.data.num_frames)
 
-    vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse", torch_dtype=torch.float16)
+    vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse", torch_dtype=dtype)
     vae.config.scaling_factor = 0.18215
     vae.config.shift_factor = 0
 
@@ -49,7 +56,7 @@ def main(config, args):
         device="cpu",
     )
 
-    unet = unet.to(dtype=torch.float16)
+    unet = unet.to(dtype=dtype)
 
     # set xformers
     if is_xformers_available():
@@ -60,7 +67,7 @@ def main(config, args):
         audio_encoder=audio_encoder,
         unet=unet,
         scheduler=scheduler,
-    ).to("cuda")
+    ).to(device)
 
     if args.seed != -1:
         set_seed(args.seed)
@@ -77,7 +84,7 @@ def main(config, args):
         num_frames=config.data.num_frames,
         num_inference_steps=config.run.inference_steps,
         guidance_scale=args.guidance_scale,
-        weight_dtype=torch.float16,
+        weight_dtype=dtype,
         width=config.data.resolution,
         height=config.data.resolution,
     )
