@@ -17,7 +17,7 @@ We present *LatentSync*, an end-to-end lip sync framework based on audio conditi
 <img src="assets/framework.png" width=100%>
 <p>
 
-LatentSync uses the Whisper to convert melspectrogram into audio embeddings, which are then integrated into the U-Net via cross-attention layers. The reference and masked frames are channel-wise concatenated with noised latents as the input of U-Net. In the training process, we use one-step method to get estimated clean latents from predicted noises, which are then decoded to obtain the estimated clean frames. The TREPA, LPIPS and SyncNet loss are added in the pixel space.
+LatentSync uses the Whisper to convert melspectrogram into audio embeddings, which are then integrated into the U-Net via cross-attention layers. The reference and masked frames are channel-wise concatenated with noised latents as the input of U-Net. In the training process, we use a one-step method to get estimated clean latents from predicted noises, which are then decoded to obtain the estimated clean frames. The TREPA, LPIPS and SyncNet loss are added in the pixel space.
 
 ## 🎬 Demo
 
