@@ -3,6 +3,7 @@
 <div align="center">
 
 [![arXiv](https://img.shields.io/badge/arXiv_paper-2412.09262-b31b1b)](https://arxiv.org/abs/2412.09262)
+<a href="https://replicate.com/lucataco/latentsync"><img src="https://replicate.com/lucataco/latentsync/badge" alt="Replicate"></a>
 
 </div>
 
@@ -105,6 +106,16 @@ If the download is successful, the checkpoints should appear as follows:
 These already include all the checkpoints required for latentsync training and inference. If you just want to try inference, you only need to download `latentsync_unet.pt` and `tiny.pt` from our [HuggingFace repo](https://huggingface.co/chunyu-li/LatentSync)
 
 ## 🚀 Inference
+
+### 1. Gradio App
+
+Run the Gradio app for inference, which requires about 6.5 GB GPU memory.
+
+```bash
+python gradio_app.py
+```
+
+### 2. Command Line Interface
 
 Run the script for inference, which requires about 6.5 GB GPU memory.
 
