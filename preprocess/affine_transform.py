@@ -76,7 +76,6 @@ def combine_video_audio(video_frames, video_input_path, video_output_path, proce
 
 def func(paths, process_temp_dir, device_id, resolution):
     os.makedirs(process_temp_dir, exist_ok=True)
-    torch.cuda.set_device(device_id)
     face_detector = FaceDetector(resolution, f"cuda:{device_id}")
 
     for video_input, video_output in paths:

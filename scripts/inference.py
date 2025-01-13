@@ -22,14 +22,12 @@ from diffusers.utils.import_utils import is_xformers_available
 from accelerate.utils import set_seed
 from latentsync.whisper.audio2feature import Audio2Feature
 
-# 检查GPU是否支持float16，以及CUDA是否可用
-is_fp16_supported = torch.cuda.is_available() and torch.cuda.get_device_capability()[0] > 7
-
-# 设置数据类型
-dtype = torch.float16 if is_fp16_supported else torch.float32
-
 
 def main(config, args):
+    # Check if the GPU supports float16
+    is_fp16_supported = torch.cuda.is_available() and torch.cuda.get_device_capability()[0] > 7
+    dtype = torch.float16 if is_fp16_supported else torch.float32
+
     print(f"Input video path: {args.video_path}")
     print(f"Input audio path: {args.audio_path}")
     print(f"Loaded checkpoint path: {args.inference_ckpt_path}")
