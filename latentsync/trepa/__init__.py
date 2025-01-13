@@ -23,13 +23,12 @@ class TREPALoss:
     def __init__(
         self,
         device="cuda",
-        ckpt_path="/mnt/bn/maliva-gen-ai-v2/chunyu.li/checkpoints/vit_g_hybrid_pt_1200e_ssv2_ft.pth",
+        ckpt_path="checkpoints/vit_g_hybrid_pt_1200e_ssv2_ft.pth",
     ):
         self.model = load_videomae_model(device, ckpt_path).eval().to(dtype=torch.float16)
         self.model.requires_grad_(False)
-        self.bce_loss = nn.BCELoss()
 
-    def __call__(self, videos_fake, videos_real, loss_type="mse"):
+    def __call__(self, videos_fake, videos_real):
         batch_size = videos_fake.shape[0]
         num_frames = videos_fake.shape[2]
         videos_fake = rearrange(videos_fake.clone(), "b c f h w -> (b f) c h w")

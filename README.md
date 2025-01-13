@@ -3,6 +3,7 @@
 <div align="center">
 
 [![arXiv](https://img.shields.io/badge/arXiv_paper-2412.09262-b31b1b)](https://arxiv.org/abs/2412.09262)
+[![arXiv](https://img.shields.io/badge/%F0%9F%A4%97%20space-HuggingFace-yellow)](https://huggingface.co/spaces/fffiloni/LatentSync)
 <a href="https://replicate.com/lucataco/latentsync"><img src="https://replicate.com/lucataco/latentsync/badge" alt="Replicate"></a>
 
 </div>
@@ -17,7 +18,7 @@ We present *LatentSync*, an end-to-end lip sync framework based on audio conditi
 <img src="assets/framework.png" width=100%>
 <p>
 
-LatentSync uses the Whisper to convert melspectrogram into audio embeddings, which are then integrated into the U-Net via cross-attention layers. The reference and masked frames are channel-wise concatenated with noised latents as the input of U-Net. In the training process, we use a one-step method to get estimated clean latents from predicted noises, which are then decoded to obtain the estimated clean frames. The TREPA, LPIPS and SyncNet loss are added in the pixel space.
+LatentSync uses the Whisper to convert melspectrogram into audio embeddings, which are then integrated into the U-Net via cross-attention layers. The reference and masked frames are channel-wise concatenated with noised latents as the input of U-Net. In the training process, we use a one-step method to get estimated clean latents from predicted noises, which are then decoded to obtain the estimated clean frames. The TREPA, LPIPS and SyncNet losses are added in the pixel space.
 
 ## 🎬 Demo
 
@@ -144,7 +145,7 @@ Run the script to execute the data processing pipeline:
 ./data_processing_pipeline.sh
 ```
 
-You can change the parameter `input_dir` in the script to specify the data directory to be processed. The processed data will be saved in the same directory. Each step will generate a new directory to prevent the need to redo the entire pipeline in case the process is interrupted by an unexpected error.
+You can change the parameter `input_dir` in the script to specify the data directory to be processed. The processed data will be saved in the `high_visual_quality` directory. Each step will generate a new directory to prevent the need to redo the entire pipeline in case the process is interrupted by an unexpected error.
 
 ## 🏋️‍♂️ Training U-Net
 
