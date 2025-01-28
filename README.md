@@ -104,13 +104,15 @@ If the download is successful, the checkpoints should appear as follows:
 |   `-- vit_g_hybrid_pt_1200e_ssv2_ft.pth
 ```
 
-These already include all the checkpoints required for latentsync training and inference. If you just want to try inference, you only need to download `latentsync_unet.pt` and `tiny.pt` from our [HuggingFace repo](https://huggingface.co/chunyu-li/LatentSync)
+These already include all the checkpoints required for latentsync training and inference. If you just want to try inference, you only need to download `latentsync_unet.pt` and `tiny.pt` from our [HuggingFace repo](https://huggingface.co/ByteDance/LatentSync)
 
 ## 🚀 Inference
 
+There are two ways to perform inference, and both require 6.5 GB of VRAM.
+
 ### 1. Gradio App
 
-Run the Gradio app for inference, which requires about 6.5 GB GPU memory.
+Run the Gradio app for inference:
 
 ```bash
 python gradio_app.py
@@ -118,13 +120,13 @@ python gradio_app.py
 
 ### 2. Command Line Interface
 
-Run the script for inference, which requires about 6.5 GB GPU memory.
+Run the script for inference:
 
 ```bash
 ./inference.sh
 ```
 
-You can change the parameter `guidance_scale` to 1.5 to improve the lip-sync accuracy.
+You can change the parameters `inference_steps` and `guidance_scale` to see more results.
 
 ## 🔄 Data Processing Pipeline
 
@@ -168,3 +170,24 @@ In case you want to train SyncNet on your own datasets, you can run the followin
 ```
 
 After `validations_steps` training, the loss charts will be saved in `train_output_dir`. They contain both the training and validation loss.
+
+## 📊 Evaluation
+
+You can evaluate the [sync confidence score](https://www.robots.ox.ac.uk/~vgg/publications/2016/Chung16a/chung16a.pdf) of a generated video by running the following script:
+
+```bash
+./eval/eval_sync_conf.sh
+```
+
+You can evaluate the accuracy of SyncNet on a dataset by running the following script:
+
+```bash
+./eval/eval_syncnet_acc.sh
+```
+
+## 🙏 Acknowledgement
+
+- Our code is built on [AnimateDiff](https://github.com/guoyww/AnimateDiff). 
+- Some code are borrowed from [MuseTalk](https://github.com/TMElyralab/MuseTalk), [StyleSync](https://github.com/guanjz20/StyleSync), [SyncNet](https://github.com/joonson/syncnet_python), [Wav2Lip](https://github.com/Rudrabha/Wav2Lip).
+
+Thanks for their generous contributions to the open-source community.
