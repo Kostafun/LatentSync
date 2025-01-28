@@ -33,6 +33,9 @@ from decord import AudioReader, VideoReader
 import shutil
 import subprocess
 
+import tempfile
+import shutil
+import time
 
 # Machine epsilon for a float32 (single precision)
 eps = np.finfo(np.float32).eps
@@ -44,7 +47,7 @@ def read_json(filepath: str):
     return json_dict
 
 
-def read_video(video_path: str, change_fps=True, use_decord=True):
+def read_video(video_path: str, change_fps=False, use_decord=True):
     if change_fps:
         temp_dir = "temp"
         if os.path.exists(temp_dir):
@@ -112,16 +115,59 @@ def read_audio(audio_path: str, audio_sample_rate: int = 16000):
 
     return audio_samples
 
+def process_and_save_video(synced_video_frames, audio_path, video_out_path):
+    temp_dir = create_temp_dir()
+    try:
+        tmp_video_path = os.path.join(temp_dir, "video.mkv")
+        write_video(tmp_video_path, synced_video_frames, fps=25)
+
+        command = f"""
+            ffmpeg -y -loglevel error -nostdin \
+            -i {tmp_video_path} \
+            -i {audio_path} \
+            -c:v h264_nvenc -preset slow -profile:v high -level:v 4.2 -rc vbr -cq 18 -b:v 0 \
+            -pix_fmt yuv420p -movflags +faststart \
+            -c:a aac -b:a 320k -ar 48000 \
+            {video_out_path}
+            """
+        subprocess.run(command, shell=True)
+    finally:
+        delete_temp_dir(temp_dir)
 
 def write_video(video_output_path: str, video_frames: np.ndarray, fps: int):
+    start_time = time.time()
     height, width = video_frames[0].shape[:2]
-    out = cv2.VideoWriter(video_output_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
+    # Use a lossless codec like FFV1 or HFYU
+    #out = cv2.VideoWriter(video_output_path, cv2.VideoWriter_fourcc(*"FFV1"), fps, (width, height)) 
+    #fourcc = cv2.VideoWriter_fourcc(*"FFV1")
+    fourcc = cv2.VideoWriter_fourcc(*"FFV1")
+    out = cv2.VideoWriter(video_output_path, fourcc, fps, (width, height))
+    #out = cv2.VideoWriter(video_output_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height))
     # out = cv2.VideoWriter(video_output_path, cv2.VideoWriter_fourcc(*"vp09"), fps, (width, height))
     for frame in video_frames:
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
         out.write(frame)
     out.release()
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print(f"Execution time of write video: {execution_time:.2f} seconds")
 
+def create_temp_dir():
+    """
+    Creates a randomly named temporary directory in the system's temp directory.
+    Returns:
+        str: The path to the created temporary directory.
+    """
+    temp_dir = tempfile.mkdtemp()
+    return temp_dir
+
+def delete_temp_dir(temp_dir):
+    """
+    Deletes the specified temporary directory and its contents.
+    Args:
+        temp_dir (str): The path to the temporary directory to delete.
+    """
+    shutil.rmtree(temp_dir)
 
 def init_dist(backend="nccl", **kwargs):
     """Initializes distributed environment."""
