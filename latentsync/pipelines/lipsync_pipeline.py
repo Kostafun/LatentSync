@@ -31,9 +31,11 @@ from einops import rearrange
 from ..models.unet import UNet3DConditionModel
 from ..utils.image_processor import ImageProcessor
 from ..utils.util import read_video, read_audio, write_video
+import latentsync.utils.util as util
 from ..whisper.audio2feature import Audio2Feature
 import tqdm
 import soundfile as sf
+import time
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -137,6 +139,7 @@ class LipsyncPipeline(DiffusionPipeline):
     @property
     def _execution_device(self):
         if self.device != torch.device("meta") or not hasattr(self.unet, "_hf_hook"):
+            print(f"Execution device: {self.device}")
             return self.device
         for module in self.unet.modules():
             if (
@@ -144,6 +147,7 @@ class LipsyncPipeline(DiffusionPipeline):
                 and hasattr(module._hf_hook, "execution_device")
                 and module._hf_hook.execution_device is not None
             ):
+                print(f"Execution device (hasattr): {self.device}")
                 return torch.device(module._hf_hook.execution_device)
         return self.device
 
@@ -260,7 +264,7 @@ class LipsyncPipeline(DiffusionPipeline):
         return images
 
     def affine_transform_video(self, video_path):
-        video_frames = read_video(video_path, use_decord=False)
+        video_frames = read_video(video_path, use_decord=False, change_fps=False)
         faces = []
         boxes = []
         affine_matrices = []
@@ -442,13 +446,16 @@ class LipsyncPipeline(DiffusionPipeline):
             )
             synced_video_frames.append(decoded_latents)
             masked_video_frames.append(masked_pixel_values)
-
+        start_time_restore = time.time()
         synced_video_frames = self.restore_video(
             torch.cat(synced_video_frames), original_video_frames, boxes, affine_matrices
         )
-        masked_video_frames = self.restore_video(
-            torch.cat(masked_video_frames), original_video_frames, boxes, affine_matrices
-        )
+        # masked_video_frames = self.restore_video(
+        #     torch.cat(masked_video_frames), original_video_frames, boxes, affine_matrices
+        # )
+        end_time_restore = time.time()
+        execution_time_restore = end_time_restore - start_time_restore
+        print(f"Execution time of restore video: {execution_time_restore:.2f} seconds")
 
         audio_samples_remain_length = int(synced_video_frames.shape[0] / video_fps * audio_sample_rate)
         audio_samples = audio_samples[:audio_samples_remain_length].cpu().numpy()
@@ -456,15 +463,6 @@ class LipsyncPipeline(DiffusionPipeline):
         if is_train:
             self.unet.train()
 
-        temp_dir = "temp"
-        if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
-        os.makedirs(temp_dir, exist_ok=True)
 
-        write_video(os.path.join(temp_dir, "video.mp4"), synced_video_frames, fps=25)
-        # write_video(video_mask_path, masked_video_frames, fps=25)
 
-        sf.write(os.path.join(temp_dir, "audio.wav"), audio_samples, audio_sample_rate)
-
-        command = f"ffmpeg -y -loglevel error -nostdin -i {os.path.join(temp_dir, 'video.mp4')} -i {os.path.join(temp_dir, 'audio.wav')} -c:v libx264 -c:a aac -q:v 0 -q:a 0 {video_out_path}"
-        subprocess.run(command, shell=True)
+        util.process_and_save_video(synced_video_frames, audio_path, video_out_path)

@@ -26,7 +26,7 @@ run:
   sync_loss_weight: 0.05 # 1/283
   perceptual_loss_weight: 0.1 # 0.1
   recon_loss_weight: 1 # 1
-  guidance_scale: 1.0 # 1.5 or 1.0
+  guidance_scale: 1 # 1.5 or 1.0
   trepa_loss_weight: 10
   inference_steps: 20
   seed: 1247
