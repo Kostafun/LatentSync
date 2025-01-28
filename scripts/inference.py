@@ -97,7 +97,7 @@ def shorten_video(video_path, temp_dir, duration):
     return target_video_path
 
 def loop_video(video_path, temp_dir, audio_duration, video_duration):
-    target_video_path = os.path.join(temp_dir, "video.mp4")
+    target_video_path = os.path.join(temp_dir, "video2.mp4")
     loop_count = int(audio_duration // video_duration) 
 
     command = f"ffmpeg -loglevel error -y -nostdin -stream_loop {loop_count} -i {video_path} -c copy {target_video_path}"
