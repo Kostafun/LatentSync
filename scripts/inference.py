@@ -104,6 +104,13 @@ def loop_video(video_path, temp_dir, audio_duration, video_duration):
     subprocess.run(command, shell=True)
     return shorten_video(target_video_path, temp_dir, audio_duration)
 
+def crop_video(video_path, temp_dir, start_time):
+    target_video_path = os.path.join(temp_dir, "video2.mp4")
+    command = f"ffmpeg -loglevel error -y -nostdin -i {video_path} -ss {start_time} -c:v libx264 -cf 0 {target_video_path}"
+
+    subprocess.run(command, shell=True)
+    return shorten_video(target_video_path, temp_dir, audio_duration)
+
 def get_audio_duration(audio_path):
     """
     Returns the duration of the audio file in seconds.
@@ -122,7 +129,7 @@ def get_video_duration(video_path):
     return duration
 
 if __name__ == "__main__":
-    start_time = time.time()
+    start_timer = time.time()
     parser = argparse.ArgumentParser()
     parser.add_argument("--unet_config_path", type=str, default="configs/unet.yaml")
     parser.add_argument("--inference_ckpt_path", type=str, required=True)
@@ -132,24 +139,31 @@ if __name__ == "__main__":
     parser.add_argument("--inference_steps", type=int, default=20)
     parser.add_argument("--guidance_scale", type=float, default=1.0)
     parser.add_argument("--seed", type=int, default=1247)
+    parser.add_argument("--start_frame", type=int, default=0)
     args = parser.parse_args()
     temp_dir = util.create_temp_dir()
 
     config = OmegaConf.load(args.unet_config_path)
 
-    audio_duration = get_audio_duration(args.audio_path)+2
+    
     video_duration = get_video_duration(args.video_path)
+    start_time = args.start_frame/25
+    if start_time > video_duration:
+        start_time = start_time % video_duration
+
+    audio_duration = get_audio_duration(args.audio_path)+2 + start_time
 
     if audio_duration < video_duration: 
         args.video_path = shorten_video(args.video_path, temp_dir, audio_duration)
     elif audio_duration > video_duration:
         args.video_path = loop_video(args.video_path, temp_dir, audio_duration, video_duration)
-
+    if start_time > 0:
+        args.video_path = crop_video(args.video_path, temp_dir, start_time)
     main(config, args)
     util.delete_temp_dir(temp_dir)
-    end_time = time.time()
+    end_timer = time.time()
 
-    execution_time = end_time - start_time
+    execution_time = end_timer - start_timer
     execution_time_per_second = execution_time / (audio_duration-2)
-    print(f"Execution time of main function: {execution_time:.2f} seconds")
+    print(f"Total execution time: {execution_time:.2f} seconds")
     print(f"Execution time per second of audio duration: {execution_time_per_second:.2f} seconds")
