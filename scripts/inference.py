@@ -62,6 +62,7 @@ def main(config, args):
     # set xformers
     if is_xformers_available():
         unet.enable_xformers_memory_efficient_attention()
+        print("Xformers enabled")
 
     pipeline = LipsyncPipeline(
         vae=vae,
@@ -106,7 +107,7 @@ def loop_video(video_path, temp_dir, audio_duration, video_duration):
 
 def crop_video(video_path, temp_dir, start_time):
     target_video_path = os.path.join(temp_dir, "video2.mp4")
-    command = f"ffmpeg -loglevel error -y -nostdin -i {video_path} -ss {start_time} -c:v libx264 -cf 0 {target_video_path}"
+    command = f"ffmpeg -loglevel error -y -nostdin -i {video_path} -ss {start_time} -c:v libx264 -crf 0 {target_video_path}"
 
     subprocess.run(command, shell=True)
     return shorten_video(target_video_path, temp_dir, audio_duration)
