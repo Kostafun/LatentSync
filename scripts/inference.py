@@ -129,19 +129,30 @@ def get_video_duration(video_path):
     duration = float(output.decode().strip())
     return duration
 
-if __name__ == "__main__":
+def run_inference(args):
     start_timer = time.time()
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--unet_config_path", type=str, default="configs/unet.yaml")
-    parser.add_argument("--inference_ckpt_path", type=str, required=True)
-    parser.add_argument("--video_path", type=str, required=True)
-    parser.add_argument("--audio_path", type=str, required=True)
-    parser.add_argument("--video_out_path", type=str, required=True)
-    parser.add_argument("--inference_steps", type=int, default=20)
-    parser.add_argument("--guidance_scale", type=float, default=1.0)
-    parser.add_argument("--seed", type=int, default=1247)
-    parser.add_argument("--start_frame", type=int, default=0)
-    args = parser.parse_args()
+    # Convert dictionary args to argparse.Namespace if needed
+    if isinstance(args, dict):
+        # Create a new argparse.Namespace object
+        namespace_args = argparse.Namespace()
+        
+        # Transfer all dictionary keys to the namespace
+        for key, value in args.items():
+            setattr(namespace_args, key, value)
+        
+        # Replace the dictionary with the namespace
+        args = namespace_args
+        
+    # Set default values for optional arguments if not present
+    if not hasattr(args, 'inference_steps'):
+        args.inference_steps = 20
+    if not hasattr(args, 'guidance_scale'):
+        args.guidance_scale = 1.0
+    if not hasattr(args, 'seed'):
+        args.seed = 1247
+    if not hasattr(args, 'start_frame'):
+        args.start_frame = 0
+
     temp_dir = util.create_temp_dir()
 
     config = OmegaConf.load(args.unet_config_path)
@@ -168,3 +179,20 @@ if __name__ == "__main__":
     execution_time_per_second = execution_time / (audio_duration-2)
     print(f"Total execution time: {execution_time:.2f} seconds")
     print(f"Execution time per second of audio duration: {execution_time_per_second:.2f} seconds")
+    return args.video_out_path
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--unet_config_path", type=str, default="configs/unet.yaml")
+    parser.add_argument("--inference_ckpt_path", type=str, required=True)
+    parser.add_argument("--video_path", type=str, required=True)
+    parser.add_argument("--audio_path", type=str, required=True)
+    parser.add_argument("--video_out_path", type=str, required=True)
+    parser.add_argument("--inference_steps", type=int, default=20)
+    parser.add_argument("--guidance_scale", type=float, default=1.0)
+    parser.add_argument("--seed", type=int, default=1247)
+    parser.add_argument("--start_frame", type=int, default=0)
+    args = parser.parse_args()
+
+    run_inference(args)
