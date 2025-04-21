@@ -129,7 +129,8 @@ def get_video_duration(video_path):
     duration = float(output.decode().strip())
     return duration
 
-def run_inference(args):
+def run_inference(job):
+    args = job['input']
     start_timer = time.time()
     # Convert dictionary args to argparse.Namespace if needed
     if isinstance(args, dict):

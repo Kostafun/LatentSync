@@ -2,9 +2,9 @@ import runpod
 
 from scripts.inference import run_inference
 
-def handler(event):
+def handler(job):
     print(f"Worker Start")
-    input = event['input']
+    # input = event['input']
     
     #prompt = input.get('prompt')  
     #seconds = input.get('seconds', 0)  
@@ -12,15 +12,14 @@ def handler(event):
     # print(f"Received prompt: {prompt}")
     # print(f"Sleeping for {seconds} seconds...")
     
-    video_path = run_inference(input)
+    video_path = run_inference(job)
 
     
     # Replace the sleep code with your Python function to generate images, text, or run any machine learning workload
     # time.sleep(seconds)  
     
     # return prompt 
-
-    return video_path
+    return {"refresh_worker": True, "job_results": {"video_path": video_path}}
 
 if __name__ == '__main__':
     runpod.serverless.start({'handler': handler })
