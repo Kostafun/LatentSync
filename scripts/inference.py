@@ -26,6 +26,7 @@ import subprocess
 import latentsync.utils.util as util
 import os
 import librosa
+from runpod.serverless.utils import  download_files_from_urls, upload_file_to_bucket
 
 def main(config, args):
     # Check if the GPU supports float16
@@ -158,7 +159,9 @@ def run_inference(job):
 
     config = OmegaConf.load(args.unet_config_path)
 
-    
+    args.video_path = download_files_from_urls(job_id=job["id"], urls=args.video_path)
+    args.audio_path = download_files_from_urls(job_id=job["id"], urls=args.audio_path)
+
     video_duration = get_video_duration(args.video_path)
     start_time = args.start_frame/25
     if start_time > video_duration:
@@ -180,7 +183,12 @@ def run_inference(job):
     execution_time_per_second = execution_time / (audio_duration-2)
     print(f"Total execution time: {execution_time:.2f} seconds")
     print(f"Execution time per second of audio duration: {execution_time_per_second:.2f} seconds")
-    return args.video_out_path
+    bucket_creds = {}
+    bucket_creds["endpointUrl"] = os.getenv["RUNPOD_SECRET_s3_url"]
+    bucket_creds["accessId"] = os.getenv["RUNPOD_SECRET_s3_keyid"]
+    bucket_creds["accessSecret"] = os.getenv["RUNPOD_SECRET_s3_appkey"]
+    path, filename = os.path.split(args.video_out_path)
+    return upload_file_to_bucket(file_name=filename, file_location=path, bucket_creds=bucket_creds)
 
 if __name__ == "__main__":
 
