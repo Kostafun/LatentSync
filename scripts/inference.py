@@ -27,7 +27,7 @@ import latentsync.utils.util as util
 import os
 import librosa
 
-def main(config, args):
+def main(config, args, job):
     # Check if the GPU supports float16
     is_fp16_supported = torch.cuda.is_available() and torch.cuda.get_device_capability()[0] > 7
     dtype = torch.float16 if is_fp16_supported else torch.float32
@@ -172,7 +172,7 @@ def run_inference(job):
         args.video_path = loop_video(args.video_path, temp_dir, audio_duration, video_duration)
     if start_time > 0:
         args.video_path = crop_video(args.video_path, temp_dir, start_time)
-    main(config, args)
+    main(config, args, job)
     util.delete_temp_dir(temp_dir)
     end_timer = time.time()
 
@@ -182,18 +182,18 @@ def run_inference(job):
     print(f"Execution time per second of audio duration: {execution_time_per_second:.2f} seconds")
     return args.video_out_path
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--unet_config_path", type=str, default="configs/unet.yaml")
-    parser.add_argument("--inference_ckpt_path", type=str, required=True)
-    parser.add_argument("--video_path", type=str, required=True)
-    parser.add_argument("--audio_path", type=str, required=True)
-    parser.add_argument("--video_out_path", type=str, required=True)
-    parser.add_argument("--inference_steps", type=int, default=20)
-    parser.add_argument("--guidance_scale", type=float, default=1.0)
-    parser.add_argument("--seed", type=int, default=1247)
-    parser.add_argument("--start_frame", type=int, default=0)
-    args = parser.parse_args()
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument("--unet_config_path", type=str, default="configs/unet.yaml")
+#     parser.add_argument("--inference_ckpt_path", type=str, required=True)
+#     parser.add_argument("--video_path", type=str, required=True)
+#     parser.add_argument("--audio_path", type=str, required=True)
+#     parser.add_argument("--video_out_path", type=str, required=True)
+#     parser.add_argument("--inference_steps", type=int, default=20)
+#     parser.add_argument("--guidance_scale", type=float, default=1.0)
+#     parser.add_argument("--seed", type=int, default=1247)
+#     parser.add_argument("--start_frame", type=int, default=0)
+#     args = parser.parse_args()
 
-    run_inference(args)
+#     run_inference(args)
