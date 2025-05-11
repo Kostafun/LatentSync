@@ -371,6 +371,7 @@ def lipsync_api(job_id: str, job_input: dict):
 # ---------------------------------------------------------------------------- #
 # RunPod Handler                                                               #
 # ---------------------------------------------------------------------------- #
+
 def handler(event):
     job_id = event['id']
     validated_input = validate(event['input'], INPUT_SCHEMA)
