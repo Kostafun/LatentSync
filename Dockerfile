@@ -4,34 +4,64 @@ FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
 # ENV DEBIAN_FRONTEND=noninteractive
 # ENV PYTHONUNBUFFERED=1
 # ENV PYTHONPATH=/app
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=on 
+
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+RUN apt update && \
+    apt upgrade -y && \
+    apt install -y \
+      python3.10-dev \
+      python3-pip \
+      python3.10-venv \
+      fonts-dejavu-core \
+      rsync \
+      git \
+      git-lfs \
+      jq \
+      moreutils \
+      aria2 \
+      wget \
+      curl \
+      libglib2.0-0 \
+      libsm6 \
+      libgl1 \
+      libxrender1 \
+      libxext6 \
+      ffmpeg \
+      unzip \
+      libgoogle-perftools-dev \
+      procps && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get clean -y
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
-    wget \
-    git \
-    ffmpeg \
-    libgl1 \
-    python3.10 \
-    python3.10-dev \
-    python3-pip \
-    && rm -rf /var/lib/apt/lists/*
+# RUN apt-get update && apt-get install -y \
+#     wget \
+#     git \
+#     ffmpeg \
+#     libgl1 \
+#     python3.10 \
+#     python3.10-dev \
+#     python3-pip \
+#     && rm -rf /var/lib/apt/lists/*
 
 # Set up Python
 RUN ln -s /usr/bin/python3.10 /usr/bin/python
-RUN pip install --upgrade pip
+#RUN pip install --upgrade pip
 
 # Set working directory
-WORKDIR /app
+#WORKDIR /workspace
 
-# Copy requirements first to leverage Docker cache
-COPY requirements.txt .
-# COPY requirements.txt /requirements.txt
+RUN pip3 install --no-cache-dir torch==2.4.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
-# Install Python dependencies
-RUN pip install -r requirements.txt
-
-# Copy the rest of the application
-COPY . .
+RUN git clone -b runpod2 https://github.com/Kostafun/LatentSync && \
+    cd /workspace/LatentSync  && \
+    pip3 install -r requirements.txt
 
 # Create necessary directories
 RUN mkdir -p /root/.cache/torch/hub/checkpoints
@@ -48,6 +78,10 @@ RUN huggingface-cli download ByteDance/LatentSync whisper/tiny.pt --local-dir ch
 
 # Expose port for Gradio app
 #EXPOSE 7860
+COPY --chmod=755 rp_handler.py /workspace/LatentSync/rp_handler.py
+
+# Docker container start script
+COPY --chmod=755 start.sh /start.sh
 
 # Set the default command to run the Gradio app
-CMD ["python3", "-u", "rp_handler.py"]
+ENTRYPOINT /start.sh
