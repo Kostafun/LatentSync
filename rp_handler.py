@@ -381,7 +381,8 @@ def handler(event):
             'error': validated_input['errors']
         }
 
-    return lipsync_api(job_id, validated_input['validated_input'])
+    results = lipsync_api(job_id, validated_input['validated_input'])
+    return {"refresh_worker": True, "job_results": results}
 
 
 if __name__ == '__main__':
@@ -389,6 +390,7 @@ if __name__ == '__main__':
     logger.info('Starting RunPod Serverless...')
     runpod.serverless.start(
         {
-            'handler': handler
+            'handler': handler,
+             "return_aggregate_stream": True
         }
     )

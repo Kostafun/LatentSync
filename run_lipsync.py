@@ -5,7 +5,10 @@ from util import post_request
 from schemas.input import INPUT_SCHEMA
 from b2_manager import B2Manager
 from dotenv import load_dotenv
-
+import runpod
+from runpod import AsyncioEndpoint, AsyncioJob
+import asyncio
+import aiohttp
 # Load environment variables
 load_dotenv()
 
@@ -18,7 +21,7 @@ def setup_b2():
         app_key=os.getenv('BUCKET_APP_KEY')
     )
 
-def process_with_b2(video_path: str, audio_path: str, output_path: str = "./output", face_restore: bool = True, upscale: int = 1, codeformer_fidelity: float = 0.7):
+async def asyncprocess_with_b2(video_path: str, audio_path: str, output_path: str = "./output", face_restore: bool = True, upscale: int = 1, codeformer_fidelity: float = 0.7):
     """
     Process files using B2 storage
     
@@ -73,7 +76,7 @@ def process_with_b2(video_path: str, audio_path: str, output_path: str = "./outp
         }
         
         # Make the API request
-        response = post_request(payload)
+        response = await process_with_runpod(payload)
         
         # Download the result
         print("Downloading result file...")
@@ -93,6 +96,29 @@ def process_with_b2(video_path: str, audio_path: str, output_path: str = "./outp
         # Attempt to clean up even if there was an error
         b2.delete_folder_recursive(folder_name)
         raise
+    
+async def process_with_runpod(payload: dict):
+    async with aiohttp.ClientSession() as session:
+        runpod.api_key = os.getenv("RUNPOD_API_KEY")
+        endpoint = AsyncioEndpoint(os.getenv("RUNPOD_ENDPOINT_ID"), session)
+        job: AsyncioJob = await endpoint.run(payload)
+
+        while True:
+            status = await job.status()
+            print(f"Current job status: {status}")
+            if status == "COMPLETED":
+                output = await job.output()
+                print("Job output:", output)
+                break  # Exit the loop once the job is completed.
+            elif status in ["FAILED"]:
+                print("Job failed or encountered an error.")
+
+                break
+            else:
+                print("Job in queue or processing. Waiting 15 seconds...")
+                await asyncio.sleep(15)  # Wait for 3 seconds before polling again
+
+        return output
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run lip sync with specified parameters')
@@ -120,6 +146,5 @@ if __name__ == '__main__':
     
     # Initialize B2 manager
     
-    
+    asyncio.run(asyncprocess_with_b2(args.source_video, args.source_audio, args.output_path, args.face_restore, args.upscale, args.codeformer_fidelity))
     # Process files with B2 storage
-    process_with_b2(args.source_video, args.source_audio, args.output_path, args.face_restore, args.upscale, args.codeformer_fidelity)

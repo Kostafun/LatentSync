@@ -16,7 +16,7 @@ import os
 import imageio
 import numpy as np
 import json
-from typing import Union
+from typing import Union, Dict, Any
 import matplotlib.pyplot as plt
 
 import torch
@@ -36,6 +36,8 @@ import subprocess
 import tempfile
 import shutil
 import time
+
+import requests
 
 # Machine epsilon for a float32 (single precision)
 eps = np.finfo(np.float32).eps
@@ -416,3 +418,39 @@ def check_ffmpeg_installed():
     result = subprocess.run("ffmpeg -version", stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     if not result.returncode == 0:
         raise FileNotFoundError("ffmpeg not found, please install it by:\n    $ conda install -c conda-forge ffmpeg")
+
+
+def post_request(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Send a request to RunPod's serverless API to process the lip sync task.
+    
+    Args:
+        payload (Dict[str, Any]): The input payload containing video and audio information
+        
+    Returns:
+        Dict[str, Any]: The response from the RunPod API
+        
+    Raises:
+        Exception: If the API request fails
+    """
+    RUNPOD_API_KEY = os.getenv('RUNPOD_API_KEY')
+    if not RUNPOD_API_KEY:
+        raise ValueError("RUNPOD_API_KEY environment variable is not set")
+        
+    RUNPOD_ENDPOINT_ID = os.getenv('RUNPOD_ENDPOINT_ID')
+    if not RUNPOD_ENDPOINT_ID:
+        raise ValueError("RUNPOD_ENDPOINT_ID environment variable is not set")
+    
+    headers = {
+        "Authorization": f"Bearer {RUNPOD_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    url = f"https://api.runpod.ai/v2/{RUNPOD_ENDPOINT_ID}/run"
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Failed to make request to RunPod API: {str(e)}")
