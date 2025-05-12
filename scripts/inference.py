@@ -185,8 +185,8 @@ def run_inference(job):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--unet_config_path", type=str, default="configs/unet.yaml")
-    parser.add_argument("--inference_ckpt_path", type=str, required=True)
+    parser.add_argument("--unet_config_path", type=str, default="configs/unet/second_stage.yaml")
+    parser.add_argument("--inference_ckpt_path", type=str, default="checkpoints/latentsync_unet.pt")
     parser.add_argument("--video_path", type=str, required=True)
     parser.add_argument("--audio_path", type=str, required=True)
     parser.add_argument("--video_out_path", type=str, required=True)

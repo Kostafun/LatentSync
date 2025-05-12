@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+FROM runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
 
 # # Set environment variables
 # ENV DEBIAN_FRONTEND=noninteractive
@@ -14,9 +14,9 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN apt update && \
     apt upgrade -y && \
     apt install -y \
-      python3.10-dev \
+      python3-dev \
       python3-pip \
-      python3.10-venv \
+      python3-venv \
       fonts-dejavu-core \
       rsync \
       git \
@@ -51,25 +51,25 @@ RUN apt update && \
 #     && rm -rf /var/lib/apt/lists/*
 
 # Set up Python
-RUN ln -s /usr/bin/python3.10 /usr/bin/python
+#RUN ln -s /usr/bin/python3.10 /usr/bin/python
 #RUN pip install --upgrade pip
 
 # Set working directory
 #WORKDIR /workspace
 
-RUN pip3 install --no-cache-dir torch==2.4.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+#RUN pip3 install --no-cache-dir torch==2.4.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
-RUN git clone -b runpod2 https://github.com/Kostafun/LatentSync && \
-    cd /workspace/LatentSync  && \
-    pip3 install -r requirements.txt
+# RUN git clone -b runpod2 https://github.com/Kostafun/LatentSync && \
+#     cd /workspace/LatentSync  && \
+#     pip3 install -r requirements.txt
 
 # Create necessary directories
-RUN mkdir -p /root/.cache/torch/hub/checkpoints
+# RUN mkdir -p /root/.cache/torch/hub/checkpoints
 
 # Download checkpoints from HuggingFace
 #RUN huggingface-cli download ByteDance/LatentSync --local-dir checkpoints --exclude "*.git*" "README.md"
-RUN huggingface-cli download ByteDance/LatentSync latentsync_unet.pt --local-dir checkpoints 
-RUN huggingface-cli download ByteDance/LatentSync whisper/tiny.pt --local-dir checkpoints 
+# RUN huggingface-cli download ByteDance/LatentSync latentsync_unet.pt --local-dir checkpoints 
+# RUN huggingface-cli download ByteDance/LatentSync whisper/tiny.pt --local-dir checkpoints 
 
 # Create soft links for auxiliary models
 #RUN ln -s /app/checkpoints/auxiliary/2DFAN4-cd938726ad.zip /root/.cache/torch/hub/checkpoints/2DFAN4-cd938726ad.zip && \
@@ -78,10 +78,10 @@ RUN huggingface-cli download ByteDance/LatentSync whisper/tiny.pt --local-dir ch
 
 # Expose port for Gradio app
 #EXPOSE 7860
-COPY --chmod=755 rp_handler.py /workspace/LatentSync/rp_handler.py
+# COPY --chmod=755 rp_handler.py /workspace/LatentSync/rp_handler.py
 
-# Docker container start script
-COPY --chmod=755 start.sh /start.sh
+ADD start.sh /start.sh
 
-# Set the default command to run the Gradio app
+# Start the container
+RUN chmod +x /start.sh
 ENTRYPOINT /start.sh
