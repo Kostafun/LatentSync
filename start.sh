@@ -16,4 +16,4 @@ echo "Starting RunPod Handler"
 export PYTHONUNBUFFERED=1
 source /workspace/venv/bin/activate
 cd /workspace
-python3 -u rp_handler.py
+python3 -u handler.py
