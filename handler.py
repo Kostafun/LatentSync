@@ -4,21 +4,13 @@ from typing import Dict, Any
 from b2_manager import B2Manager
 from scripts.inference import run_inference
 from dotenv import load_dotenv
-import os
-import io
-import uuid
-import base64
-import copy
-import cv2
-
-import numpy as np
-import traceback
 import runpod
 from runpod.serverless.utils.rp_validator import validate
 from runpod.serverless.modules.rp_logger import RunPodLogger
-from typing import List, Union
+import shutil
 
-from restoration import *
+# Comment out the restoration import until it exists
+# from restoration import *
 from schemas.input import INPUT_SCHEMA
 
 logger = RunPodLogger()
@@ -45,7 +37,6 @@ def extract_b2_path(b2_url: str) -> str:
     return parts[1].split('/', 1)[1]
 
 def handler(event):
-    payload = validate(event['input'], INPUT_SCHEMA)
     """
     Process the input payload and return the result file URL
     
@@ -55,12 +46,16 @@ def handler(event):
     Returns:
         Dict[str, str]: Dictionary containing the result file URL
     """
+    payload = validate(event['input'], INPUT_SCHEMA)
+    
+    # Define temp_dir outside try block so it's available in except block
+    temp_dir = f"/workspace/tmp/lipsync_{uuid.uuid4()}"
+    
     try:
         # Initialize B2 manager
         b2 = setup_b2()
         
         # Create a unique temporary directory
-        temp_dir = f"/workspace/tmp/lipsync_{uuid.uuid4()}"
         os.makedirs(temp_dir, exist_ok=True)
         
         # Extract B2 paths from URLs
@@ -79,6 +74,8 @@ def handler(event):
         
         # Prepare inference arguments
         inference_args = {
+            'unet_config_path': "configs/unet/second_stage.yaml",
+            'inference_ckpt_path': "checkpoints/latentsync_unet.pt",
             'video_path': video_path,
             'audio_path': audio_path,
             'video_out_path': os.path.join(temp_dir, "result.mp4"),
@@ -89,7 +86,7 @@ def handler(event):
         }
         
         # Run inference
-        result_path = run_inference(inference_args)
+        result_path = run_inference({'input': inference_args})
         
         # Upload result back to B2
         # Use the same folder as the source video
@@ -99,7 +96,6 @@ def handler(event):
             raise Exception("Failed to upload result file")
         
         # Clean up temporary directory
-        import shutil
         shutil.rmtree(temp_dir)
         
         # Return the result URL
@@ -114,11 +110,10 @@ def handler(event):
         raise Exception(f"Error processing request: {str(e)}") 
     
 if __name__ == '__main__':
-
     logger.info('Starting RunPod Serverless...')
     runpod.serverless.start(
         {
             'handler': handler,
-             "return_aggregate_stream": True
+            "return_aggregate_stream": True
         }
     )

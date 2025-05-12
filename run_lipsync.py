@@ -17,11 +17,15 @@ load_dotenv()
 def setup_b2():
     """Initialize and return B2Manager instance"""
     return B2Manager(
-        bucket_name=os.getenv('BUCKET_NAME'),
-        bucket_id=os.getenv('BUCKET_ID'),
-        key_id=os.getenv('BUCKET_KEY_ID'),
-        app_key=os.getenv('BUCKET_APP_KEY')
+        bucket_name=os.getenv('RUNPOD_SECRET_BUCKET_NAME'),
+        bucket_id=os.getenv('RUNPOD_SECRET_BUCKET_ID'),
+        key_id=os.getenv('RUNPOD_SECRET_BUCKET_KEY_ID'),
+        app_key=os.getenv('RUNPOD_SECRET_BUCKET_APP_KEY')
     )
+def cleanup(b2: B2Manager, folder_name: str):
+    print("Cleaning up...")
+    if not b2.delete_folder_recursive(folder_name):
+        raise Exception("Failed to delete folder")
 
 async def asyncprocess_with_b2(video_path: str, audio_path: str, output_path: str = "./output", face_restore: bool = True, upscale: int = 1, codeformer_fidelity: float = 0.7):
     """
@@ -64,18 +68,22 @@ async def asyncprocess_with_b2(video_path: str, audio_path: str, output_path: st
         print(f"Uploading audio file: {audio_filename}...")
         if not b2.upload_file(audio_path, f"{folder_name}{audio_filename}"):
             raise Exception("Failed to upload audio file")
-
-        # Process files (lip sync)
-        print("Processing files...")
-        payload = {
-            "input": {
-                "source_video": f"{folder_name}{video_filename}",
-                "source_audio": f"{folder_name}{audio_filename}",
-                "face_restore": face_restore,
-                "upscale": upscale,
-                "codeformer_fidelity": codeformer_fidelity
+        try:
+                # Process files (lip sync)
+            print("Processing files...")
+            payload = {
+                "input": {
+                    "source_video": f"{folder_name}{video_filename}",
+                    "source_audio": f"{folder_name}{audio_filename}",
+                    "face_restore": face_restore,
+                    "upscale": upscale,
+                    "codeformer_fidelity": codeformer_fidelity
+                }
             }
-        }
+        except Exception as e:
+            cleanup(b2, folder_name)
+            print(f"Error processing files: {e}")
+            raise
         
         # Make the API request
         response = await process_with_runpod(payload)
@@ -86,9 +94,7 @@ async def asyncprocess_with_b2(video_path: str, audio_path: str, output_path: st
             raise Exception("Failed to download result file")
 
         # Clean up
-        print("Cleaning up...")
-        if not b2.delete_folder_recursive(folder_name):
-            raise Exception("Failed to delete folder")
+        cleanup(b2, folder_name)
 
         print("Process completed successfully!")
         return response
