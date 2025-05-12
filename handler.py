@@ -47,7 +47,7 @@ def handler(event):
         Dict[str, str]: Dictionary containing the result file URL
     """
     payload = validate(event['input'], INPUT_SCHEMA)
-    
+    payload = event['input']
     # Define temp_dir outside try block so it's available in except block
     # Use a directory relative to the current file
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -61,6 +61,7 @@ def handler(event):
         os.makedirs(temp_dir, exist_ok=True)
         
         # Extract B2 paths from URLs
+        print("payload: {}".format(payload))
         video_b2_path = extract_b2_path(payload['source_video'])
         audio_b2_path = extract_b2_path(payload['source_audio'])
         
