@@ -367,7 +367,7 @@ def face_swap_api(job_id: str, job_input: dict):
             'refresh_worker': True
         }
 
-def lipsync_api(job_id: str, job_input: dict):
+
 # ---------------------------------------------------------------------------- #
 # RunPod Handler                                                               #
 # ---------------------------------------------------------------------------- #
@@ -381,8 +381,8 @@ def handler(event):
             'error': validated_input['errors']
         }
 
-    results = lipsync_api(job_id, validated_input['validated_input'])
-    return {"refresh_worker": True, "job_results": results}
+    #results = lipsync_api(job_id, validated_input['validated_input'])
+    #return {"refresh_worker": True, "job_results": results}
 
 
 if __name__ == '__main__':
