@@ -1,37 +1,40 @@
-import boto3
-from botocore.exceptions import ClientError
 import os
 from typing import Optional
+from b2sdk.v2 import B2Api, InMemoryAccountInfo
+from b2sdk.v2.exception import B2Error
 
 class B2Manager:
-    def __init__(self, bucket_name: str, bucket_id: str, key_id: str, app_key: str, endpoint: str = 's3.us-west-002.backblazeb2.com'):
+    def __init__(self, bucket_name: str, bucket_id: str, key_id: str, app_key: str, endpoint: str = None):
         """
         Initialize B2Manager with Backblaze B2 credentials
         
         Args:
             bucket_name (str): Name of the bucket
             bucket_id (str): Bucket ID
-            key_id (str): Key ID
+            key_id (str): Application Key ID
             app_key (str): Application Key
-            endpoint (str): B2 endpoint URL
+            endpoint (str, optional): Custom B2 endpoint URL if needed
         """
         self.bucket_name = bucket_name
-        self.b2 = boto3.client(
-            's3',
-            endpoint_url=f'https://{endpoint}',
-            aws_access_key_id=key_id,
-            aws_secret_access_key=app_key
-        )
-        self.s3 = boto3.resource(
-            's3',
-            endpoint_url=f'https://{endpoint}',
-            aws_access_key_id=key_id,
-            aws_secret_access_key=app_key
-        )
+        self.bucket_id = bucket_id
+        
+        # Setup B2 API
+        self.info = InMemoryAccountInfo()
+        self.api = B2Api(self.info)
+        
+        # Authorize account
+        self.api.authorize_account("production", key_id, app_key)
+        
+        # Get bucket object
+        self.bucket = self.api.get_bucket_by_name(bucket_name)
 
     def create_folder(self, folder_path: str) -> bool:
         """
-        Create a folder in the bucket
+        Create a folder structure in the bucket
+        
+        Note: B2 is an object storage system and doesn't have real folders.
+        This method simply ensures the folder path exists logically in the B2 system
+        by creating a small marker file.
         
         Args:
             folder_path (str): Path of the folder to create
@@ -40,19 +43,17 @@ class B2Manager:
             bool: True if successful, False otherwise
         """
         try:
-            # Ensure folder path ends with a slash
-            if not folder_path.endswith('/'):
-                folder_path += '/'
+            # Normalize the folder path (remove trailing slash if present)
+            folder_path = folder_path.rstrip('/')
             
-            # Create an empty object with the folder path as the key
-            self.b2.put_object(
-                Bucket=self.bucket_name,
-                Key=folder_path,
-                Body=''
-            )
+            # Create a marker file in the folder
+            marker_path = f"{folder_path}/.b2-folder-marker"
+            
+            # Create an empty file as the folder marker
+            self.bucket.upload_bytes(b'', marker_path)
             return True
-        except ClientError as e:
-            print(f"Error creating folder: {e}")
+        except B2Error as e:
+            print(f"Error creating folder structure: {e}")
             return False
 
     def upload_file(self, local_path: str, bucket_path: str) -> bool:
@@ -67,9 +68,12 @@ class B2Manager:
             bool: True if successful, False otherwise
         """
         try:
-            self.b2.upload_file(local_path, self.bucket_name, bucket_path)
+            self.bucket.upload_local_file(
+                local_file=local_path,
+                file_name=bucket_path
+            )
             return True
-        except ClientError as e:
+        except B2Error as e:
             print(f"Error uploading file: {e}")
             return False
 
@@ -88,9 +92,13 @@ class B2Manager:
             # Create directory if it doesn't exist
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
             
-            self.b2.download_file(self.bucket_name, bucket_path, local_path)
+            # Download the file
+            self.bucket.download_file_by_name(
+                file_name=bucket_path,
+                local_file_path=local_path
+            )
             return True
-        except ClientError as e:
+        except B2Error as e:
             print(f"Error downloading file: {e}")
             return False
 
@@ -109,17 +117,17 @@ class B2Manager:
             if not folder_path.endswith('/'):
                 folder_path += '/'
             
-            # List all objects in the folder
-            paginator = self.b2.get_paginator('list_objects_v2')
-            pages = paginator.paginate(Bucket=self.bucket_name, Prefix=folder_path)
+            # List all files in the folder
+            file_versions = self.bucket.ls(folder_path, recursive=True)
             
-            # Delete all objects in the folder
-            for page in pages:
-                if 'Contents' in page:
-                    delete_keys = {'Objects': [{'Key': obj['Key']} for obj in page['Contents']]}
-                    self.b2.delete_objects(Bucket=self.bucket_name, Delete=delete_keys)
+            # Delete all files in the folder
+            for file_info, _ in file_versions:
+                self.bucket.delete_file_version(
+                    file_id=file_info.id_,
+                    file_name=file_info.file_name
+                )
             
             return True
-        except ClientError as e:
+        except B2Error as e:
             print(f"Error deleting folder: {e}")
             return False 

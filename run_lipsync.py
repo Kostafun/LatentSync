@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import argparse
 import os
-from util import post_request
+from datetime import datetime
+import uuid
+
 from schemas.input import INPUT_SCHEMA
 from b2_manager import B2Manager
 from dotenv import load_dotenv
@@ -32,7 +34,7 @@ async def asyncprocess_with_b2(video_path: str, audio_path: str, output_path: st
         result_path: Path for the result file
     """
     b2 = setup_b2()
-    folder_name = "lipsync_processing/"
+    folder_name = f"lipsync_{datetime.now().strftime('%Y%m%d')}_{str(uuid.uuid4())[:8]}/"
     
     try:
         # Validate input files
@@ -96,7 +98,7 @@ async def asyncprocess_with_b2(video_path: str, audio_path: str, output_path: st
         # Attempt to clean up even if there was an error
         b2.delete_folder_recursive(folder_name)
         raise
-    
+
 async def process_with_runpod(payload: dict):
     async with aiohttp.ClientSession() as session:
         runpod.api_key = os.getenv("RUNPOD_API_KEY")
@@ -124,9 +126,9 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Run lip sync with specified parameters')
     
     # Add required arguments
-    parser.add_argument('--source-video', type=str, required=True,
+    parser.add_argument('--source-video', type=str, default="temp/video.mp4",
                       help='Path to the source video file')
-    parser.add_argument('--source-audio', type=str, required=True,
+    parser.add_argument('--source-audio', type=str, default="temp/audio.mp3",
                       help='Path to the source audio file')
     parser.add_argument('--output-path', type=str, default="./output",
                       help='Path to the output file')
