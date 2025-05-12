@@ -20,10 +20,10 @@ load_dotenv()
 def setup_b2():
     """Initialize and return B2Manager instance"""
     return B2Manager(
-        bucket_name=os.getenv('BUCKET_NAME'),
-        bucket_id=os.getenv('BUCKET_ID'),
-        key_id=os.getenv('BUCKET_KEY_ID'),
-        app_key=os.getenv('BUCKET_APP_KEY')
+        bucket_name=os.getenv('RUNPOD_SECRET_BUCKET_NAME'),
+        bucket_id=os.getenv('RUNPOD_SECRET_BUCKET_ID'),
+        key_id=os.getenv('RUNPOD_SECRET_BUCKET_KEY_ID'),
+        app_key=os.getenv('RUNPOD_SECRET_BUCKET_APP_KEY')
     )
 
 def extract_b2_path(b2_url: str) -> str:
