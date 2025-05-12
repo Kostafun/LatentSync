@@ -49,7 +49,9 @@ def handler(event):
     payload = validate(event['input'], INPUT_SCHEMA)
     
     # Define temp_dir outside try block so it's available in except block
-    temp_dir = f"/workspace/tmp/lipsync_{uuid.uuid4()}"
+    # Use a directory relative to the current file
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    temp_dir = os.path.join(current_dir, "tmp", f"lipsync_{uuid.uuid4()}")
     
     try:
         # Initialize B2 manager
