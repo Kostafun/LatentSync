@@ -46,8 +46,10 @@ def handler(event):
     Returns:
         Dict[str, str]: Dictionary containing the result file URL
     """
-    payload = validate(event['input'], INPUT_SCHEMA)
-    payload = event['input']
+    payload = validate(event, INPUT_SCHEMA)
+    payload=payload['validated_input']
+
+    #payload = event['input']
     # Define temp_dir outside try block so it's available in except block
     # Use a directory relative to the current file
     current_dir = os.path.dirname(os.path.abspath(__file__))

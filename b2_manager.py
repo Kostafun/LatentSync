@@ -17,6 +17,7 @@ class B2Manager:
         """
         self.bucket_name = bucket_name
         self.bucket_id = bucket_id
+        self.endpoint = endpoint
         
         # Setup B2 API
         self.info = InMemoryAccountInfo()
@@ -93,10 +94,10 @@ class B2Manager:
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
             
             # Download the file
-            self.bucket.download_file_by_name(
-                file_name=bucket_path,
-                local_file_path=local_path
+            downloaded_file = self.bucket.download_file_by_name(
+                file_name=bucket_path
             )
+            t = downloaded_file.save_to(local_path)
             return True
         except B2Error as e:
             print(f"Error downloading file: {e}")
@@ -131,3 +132,33 @@ class B2Manager:
         except B2Error as e:
             print(f"Error deleting folder: {e}")
             return False 
+            
+    def get_file_url(self, bucket_path: str) -> str:
+        """
+        Gets the full B2 URL for a file in the bucket
+        
+        Args:
+            bucket_path (str): Path of the file in the bucket
+            
+        Returns:
+            str: The full B2 URL for the file
+        """
+        try:
+            # Get the download URL directly from the B2 API
+            download_url = self.bucket.get_download_url(bucket_path)
+            return download_url
+        except B2Error as e:
+            print(f"Error getting file URL: {e}")
+            
+            # If the direct method fails, construct URL manually using endpoint
+            # Fall back to the default B2 endpoint format if custom endpoint not provided
+            if self.endpoint:
+                endpoint = self.endpoint
+            else:
+                # Get the download URL info from the account info
+                account_info = self.api.get_account_info()
+                download_info = account_info.get_download_info()
+                endpoint = download_info['downloadUrl'].split('/file/')[0]
+            
+            # Construct the URL
+            return f"{endpoint}/file/{self.bucket_name}/{bucket_path}" 

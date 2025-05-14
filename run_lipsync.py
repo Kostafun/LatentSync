@@ -11,6 +11,7 @@ import runpod
 from runpod import AsyncioEndpoint, AsyncioJob
 import asyncio
 import aiohttp
+from handler import handler
 # Load environment variables
 load_dotenv()
 
@@ -27,7 +28,7 @@ def cleanup(b2: B2Manager, folder_name: str):
     if not b2.delete_folder_recursive(folder_name):
         raise Exception("Failed to delete folder")
 
-async def asyncprocess_with_b2(video_path: str, audio_path: str, output_path: str = "./output", face_restore: bool = True, upscale: int = 1, codeformer_fidelity: float = 0.7):
+async def asyncprocess_with_b2(video_path: str, audio_path: str, output_path: str = "./output", face_restore: bool = True, upscale: int = 1, codeformer_fidelity: float = 0.7, local: bool = False):
     """
     Process files using B2 storage
     
@@ -61,32 +62,36 @@ async def asyncprocess_with_b2(video_path: str, audio_path: str, output_path: st
         audio_filename = "audio.mp3"
         result_filename = "result.mp4"
         
-        print(f"Uploading video file: {video_filename}...")
+        print(f"Uploading video file: {video_filename} to {folder_name}...")
         if not b2.upload_file(video_path, f"{folder_name}{video_filename}"):
             raise Exception("Failed to upload video file")
 
-        print(f"Uploading audio file: {audio_filename}...")
+        print(f"Uploading audio file: {audio_filename} to {folder_name}...")
         if not b2.upload_file(audio_path, f"{folder_name}{audio_filename}"):
             raise Exception("Failed to upload audio file")
         try:
                 # Process files (lip sync)
             print("Processing files...")
+            video_url = b2.get_file_url(f"{folder_name}{video_filename}")
+            audio_url = b2.get_file_url(f"{folder_name}{audio_filename}")
             payload = {
-                "input": {
-                    "source_video": f"{folder_name}{video_filename}",
-                    "source_audio": f"{folder_name}{audio_filename}",
+
+                    "source_video": video_url,
+                    "source_audio": audio_url,
                     "face_restore": face_restore,
                     "upscale": upscale,
                     "codeformer_fidelity": codeformer_fidelity
-                }
+
             }
+            print(f"Payload: {payload}")
         except Exception as e:
             cleanup(b2, folder_name)
             print(f"Error processing files: {e}")
             raise
-        
-        # Make the API request
-        response = await process_with_runpod(payload)
+        if local:
+            response = await process_with_runpod_local(payload)
+        else:
+            response = await process_with_runpod(payload)
         
         # Download the result
         print("Downloading result file...")
@@ -104,6 +109,9 @@ async def asyncprocess_with_b2(video_path: str, audio_path: str, output_path: st
         # Attempt to clean up even if there was an error
         b2.delete_folder_recursive(folder_name)
         raise
+async def process_with_runpod_local(payload: dict):
+    response = handler(payload)
+    return response
 
 async def process_with_runpod(payload: dict):
     async with aiohttp.ClientSession() as session:
@@ -146,6 +154,8 @@ def parse_args():
     parser.add_argument('--codeformer-fidelity', type=float, 
                       default=INPUT_SCHEMA['codeformer_fidelity']['default'],
                       help='Codeformer fidelity parameter')
+    parser.add_argument('--local', type=bool, default=False,
+                      help='Whether to run locally')
     
     return parser.parse_args()
 
@@ -154,5 +164,5 @@ if __name__ == '__main__':
     
     # Initialize B2 manager
     
-    asyncio.run(asyncprocess_with_b2(args.source_video, args.source_audio, args.output_path, args.face_restore, args.upscale, args.codeformer_fidelity))
+    asyncio.run(asyncprocess_with_b2(args.source_video, args.source_audio, args.output_path, args.face_restore, args.upscale, args.codeformer_fidelity, args.local))
     # Process files with B2 storage

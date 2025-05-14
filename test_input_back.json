@@ -1,0 +1,6 @@
+{
+	"input": {
+		"source_video": "https://s3.us-west-002.backblazeb2.com/file/latentsync/temp/video.mp4", 
+		"source_audio": "https://s3.us-west-002.backblazeb2.com/file/latentsync/temp/audio.mp4"
+	}
+}
