@@ -4,10 +4,12 @@ FROM runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
 # ENV DEBIAN_FRONTEND=noninteractive
 # ENV PYTHONUNBUFFERED=1
 # ENV PYTHONPATH=/app
-ENV DEBIAN_FRONTEND=noninteractive \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=on 
+# ENV DEBIAN_FRONTEND=noninteractive \
+#     PYTHONUNBUFFERED=1 \
+#     PIP_NO_CACHE_DIR=on 
 
+RUN ln -sf $(which python3.11) /usr/local/bin/python && \
+    ln -sf $(which python3.11) /usr/local/bin/python3
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -17,27 +19,16 @@ RUN apt update && \
       python3-dev \
       python3-pip \
       python3-venv \
-      fonts-dejavu-core \
-      rsync \
       git \
       git-lfs \
-      jq \
-      moreutils \
-      aria2 \
       wget \
       curl \
-      libglib2.0-0 \
-      libsm6 \
-      libgl1 \
-      libxrender1 \
-      libxext6 \
       ffmpeg \
-      unzip \
-      libgoogle-perftools-dev \
-      procps && \
+      unzip &&\
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/* && \
     apt-get clean -y
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install system dependencies
 # RUN apt-get update && apt-get install -y \
@@ -79,6 +70,14 @@ RUN apt update && \
 # Expose port for Gradio app
 #EXPOSE 7860
 # COPY --chmod=755 rp_handler.py /workspace/LatentSync/rp_handler.py
+
+WORKDIR /workspace
+
+# Copy the project files (.dockerignore will exclude mp3/mp4 files)
+COPY . /workspace/
+
+#ENV PYTHONPATH="/workspace:${PYTHONPATH}"
+#ENV PATH="/workspace/.venv/bin:${PATH}"
 
 ADD start.sh /start.sh
 
