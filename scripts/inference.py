@@ -26,17 +26,39 @@ import subprocess
 import latentsync.utils.util as util
 import os
 import librosa
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger('inference')
 
 def main(config, args):
     # Check if the GPU supports float16
-    is_fp16_supported = torch.cuda.is_available() and torch.cuda.get_device_capability()[0] > 7
+    gpu_available = torch.cuda.is_available()
+    logger.info(f"CUDA available: {gpu_available}")
+    if gpu_available:
+        logger.info(f"CUDA device count: {torch.cuda.device_count()}")
+        logger.info(f"CUDA device name: {torch.cuda.get_device_name(0)}")
+        logger.info(f"CUDA device capability: {torch.cuda.get_device_capability()}")
+    
+    is_fp16_supported = gpu_available and torch.cuda.get_device_capability()[0] > 7
     dtype = torch.float16 if is_fp16_supported else torch.float32
+    logger.info(f"Using dtype: {dtype}")
 
     #print(f"Input video path: {args.video_path}")
     #print(f"Input audio path: {args.audio_path}")
     #print(f"Loaded checkpoint path: {args.inference_ckpt_path}")
 
-    scheduler = DDIMScheduler.from_pretrained("configs")
+    logger.info(f"Loading scheduler from: configs")
+    logger.info(f"Configs directory exists: {os.path.exists('configs')}")
+    logger.info(f"Configs directory contents: {os.listdir('configs') if os.path.exists('configs') else 'Directory not found'}")
+    
+    try:
+        scheduler = DDIMScheduler.from_pretrained("configs")
+        logger.info("Scheduler loaded successfully")
+    except Exception as e:
+        logger.error(f"Error loading scheduler: {str(e)}")
+        raise
 
     if config.model.cross_attention_dim == 768:
         whisper_model_path = "small"
@@ -45,17 +67,51 @@ def main(config, args):
     else:
         raise NotImplementedError("cross_attention_dim must be 768 or 384")
 
-    audio_encoder = Audio2Feature(model_path=whisper_model_path, device="cuda", num_frames=config.data.num_frames)
+    logger.info(f"Loading audio encoder with whisper model: {whisper_model_path}")
+    whisper_path = f"checkpoints/whisper/{whisper_model_path}.pt"
+    logger.info(f"Checking if whisper model exists: {os.path.exists(whisper_path)}")
+    
+    try:
+        audio_encoder = Audio2Feature(model_path=whisper_model_path, device="cuda", num_frames=config.data.num_frames)
+        logger.info("Audio encoder loaded successfully")
+    except Exception as e:
+        logger.error(f"Error loading audio encoder: {str(e)}")
+        raise
 
-    vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse", torch_dtype=dtype)
-    vae.config.scaling_factor = 0.18215
-    vae.config.shift_factor = 0
+    logger.info("Loading VAE model from stabilityai/sd-vae-ft-mse")
+    try:
+        vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse", torch_dtype=dtype)
+        vae.config.scaling_factor = 0.18215
+        vae.config.shift_factor = 0
+        logger.info("VAE model loaded successfully")
+    except Exception as e:
+        logger.error(f"Error loading VAE model: {str(e)}")
+        raise
 
-    unet, _ = UNet3DConditionModel.from_pretrained(
-        OmegaConf.to_container(config.model),
-        args.inference_ckpt_path,  # load checkpoint
-        device="cpu",
-    )
+    logger.info(f"Loading UNet model from checkpoint: {args.inference_ckpt_path}")
+    logger.info(f"Checkpoint file exists: {os.path.exists(args.inference_ckpt_path)}")
+    
+    if os.path.exists(args.inference_ckpt_path):
+        logger.info(f"Checkpoint file size: {os.path.getsize(args.inference_ckpt_path)} bytes")
+    else:
+        logger.error(f"Checkpoint file not found at: {args.inference_ckpt_path}")
+        # List parent directory contents to help debug
+        checkpoint_dir = os.path.dirname(args.inference_ckpt_path)
+        if os.path.exists(checkpoint_dir):
+            logger.info(f"Contents of checkpoint directory: {os.listdir(checkpoint_dir)}")
+        else:
+            logger.error(f"Checkpoint directory does not exist: {checkpoint_dir}")
+    
+    try:
+        unet, _ = UNet3DConditionModel.from_pretrained(
+            OmegaConf.to_container(config.model),
+            args.inference_ckpt_path,  # load checkpoint
+            device="cpu",
+        )
+        logger.info("UNet model loaded successfully")
+    except Exception as e:
+        logger.error(f"Error loading UNet model: {str(e)}")
+        raise
 
     unet = unet.to(dtype=dtype)
 
@@ -130,8 +186,13 @@ def get_video_duration(video_path):
     return duration
 
 def run_inference(job):
+    logger.info("Starting run_inference function")
+    logger.info(f"Job input: {job}")
+    
     args = job['input']
     start_timer = time.time()
+    
+    logger.info(f"Inference arguments: {args}")
     # Convert dictionary args to argparse.Namespace if needed
     if isinstance(args, dict):
         # Create a new argparse.Namespace object
@@ -154,17 +215,39 @@ def run_inference(job):
     if not hasattr(args, 'start_frame'):
         args.start_frame = 0
 
+    logger.info("Creating temporary directory")
     temp_dir = util.create_temp_dir()
+    logger.info(f"Temporary directory created: {temp_dir}")
 
-    config = OmegaConf.load(args.unet_config_path)
+    logger.info(f"Loading config from: {args.unet_config_path}")
+    logger.info(f"Config file exists: {os.path.exists(args.unet_config_path)}")
+    
+    try:
+        config = OmegaConf.load(args.unet_config_path)
+        logger.info("Config loaded successfully")
+    except Exception as e:
+        logger.error(f"Error loading config: {str(e)}")
+        raise
 
     
-    video_duration = get_video_duration(args.video_path)
-    start_time = args.start_frame/25
-    if start_time > video_duration:
-        start_time = start_time % video_duration
+    logger.info(f"Checking input files:")
+    logger.info(f"Video path: {args.video_path}, exists: {os.path.exists(args.video_path)}")
+    logger.info(f"Audio path: {args.audio_path}, exists: {os.path.exists(args.audio_path)}")
+    
+    try:
+        video_duration = get_video_duration(args.video_path)
+        logger.info(f"Video duration: {video_duration} seconds")
+        
+        start_time = args.start_frame/25
+        if start_time > video_duration:
+            start_time = start_time % video_duration
+        logger.info(f"Start time: {start_time} seconds")
 
-    audio_duration = get_audio_duration(args.audio_path)+2 + start_time
+        audio_duration = get_audio_duration(args.audio_path)+2 + start_time
+        logger.info(f"Audio duration: {audio_duration} seconds")
+    except Exception as e:
+        logger.error(f"Error getting media durations: {str(e)}")
+        raise
 
     if audio_duration < video_duration: 
         args.video_path = shorten_video(args.video_path, temp_dir, audio_duration)
@@ -172,14 +255,27 @@ def run_inference(job):
         args.video_path = loop_video(args.video_path, temp_dir, audio_duration, video_duration)
     if start_time > 0:
         args.video_path = crop_video(args.video_path, temp_dir, start_time)
-    main(config, args)
-    util.delete_temp_dir(temp_dir)
+    
+    logger.info("Starting main inference process")
+    try:
+        main(config, args)
+        logger.info("Main inference process completed successfully")
+    except Exception as e:
+        logger.error(f"Error in main inference process: {str(e)}")
+        raise
+    finally:
+        logger.info(f"Cleaning up temporary directory: {temp_dir}")
+        util.delete_temp_dir(temp_dir)
     end_timer = time.time()
 
     execution_time = end_timer - start_timer
     execution_time_per_second = execution_time / (audio_duration-2)
-    print(f"Total execution time: {execution_time:.2f} seconds")
-    print(f"Execution time per second of audio duration: {execution_time_per_second:.2f} seconds")
+    logger.info(f"Total execution time: {execution_time:.2f} seconds")
+    logger.info(f"Execution time per second of audio duration: {execution_time_per_second:.2f} seconds")
+    
+    logger.info(f"Output video path: {args.video_out_path}")
+    logger.info(f"Output video exists: {os.path.exists(args.video_out_path)}")
+    
     return args.video_out_path
 
 if __name__ == "__main__":

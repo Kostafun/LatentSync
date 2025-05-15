@@ -17,6 +17,20 @@ logger = RunPodLogger()
 # Load environment variables
 load_dotenv()
 
+# Add detailed logging for debugging
+logger.info("=== DEBUGGING RUNPOD SERVERLESS ENVIRONMENT ===")
+logger.info(f"Current working directory: {os.getcwd()}")
+logger.info(f"__file__ path: {__file__}")
+logger.info(f"Absolute __file__ path: {os.path.abspath(__file__)}")
+logger.info(f"Directory listing of current directory: {os.listdir('.')}")
+
+# Log environment variables (without exposing sensitive values)
+logger.info("=== ENVIRONMENT VARIABLES CHECK ===")
+logger.info(f"RUNPOD_SECRET_BUCKET_NAME exists: {os.getenv('RUNPOD_SECRET_BUCKET_NAME') is not None}")
+logger.info(f"RUNPOD_SECRET_BUCKET_ID exists: {os.getenv('RUNPOD_SECRET_BUCKET_ID') is not None}")
+logger.info(f"RUNPOD_SECRET_BUCKET_KEY_ID exists: {os.getenv('RUNPOD_SECRET_BUCKET_KEY_ID') is not None}")
+logger.info(f"RUNPOD_SECRET_BUCKET_APP_KEY exists: {os.getenv('RUNPOD_SECRET_BUCKET_APP_KEY') is not None}")
+
 def setup_b2():
     """Initialize and return B2Manager instance"""
     return B2Manager(
@@ -55,12 +69,18 @@ def handler(event):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     temp_dir = os.path.join(current_dir, "tmp", f"lipsync_{uuid.uuid4()}")
     
+    # Log path information
+    logger.info(f"Current directory resolved to: {current_dir}")
+    logger.info(f"Temporary directory path: {temp_dir}")
+    
     try:
         # Initialize B2 manager
         b2 = setup_b2()
         
         # Create a unique temporary directory
+        logger.info(f"Attempting to create temporary directory: {temp_dir}")
         os.makedirs(temp_dir, exist_ok=True)
+        logger.info(f"Temporary directory created successfully: {os.path.exists(temp_dir)}")
         
         # Extract B2 paths from URLs
         print("payload: {}".format(payload))
@@ -71,16 +91,29 @@ def handler(event):
         video_path = os.path.join(temp_dir, "video.mp4")
         audio_path = os.path.join(temp_dir, "audio.mp3")
         
+        logger.info(f"Attempting to download video from B2: {video_b2_path}")
         if not b2.download_file(video_b2_path, video_path):
+            logger.error(f"Failed to download video file from B2: {video_b2_path}")
             raise Exception("Failed to download video file")
+        logger.info(f"Video download successful, file exists: {os.path.exists(video_path)}")
             
+        logger.info(f"Attempting to download audio from B2: {audio_b2_path}")
         if not b2.download_file(audio_b2_path, audio_path):
+            logger.error(f"Failed to download audio file from B2: {audio_b2_path}")
             raise Exception("Failed to download audio file")
+        logger.info(f"Audio download successful, file exists: {os.path.exists(audio_path)}")
         
         # Prepare inference arguments
+        unet_config_path = "configs/unet/second_stage.yaml"
+        inference_ckpt_path = "checkpoints/latentsync_unet.pt"
+        
+        # Log file existence checks
+        logger.info(f"Checking if config file exists: {os.path.exists(unet_config_path)}")
+        logger.info(f"Checking if checkpoint file exists: {os.path.exists(inference_ckpt_path)}")
+        
         inference_args = {
-            'unet_config_path': "configs/unet/second_stage.yaml",
-            'inference_ckpt_path': "checkpoints/latentsync_unet.pt",
+            'unet_config_path': unet_config_path,
+            'inference_ckpt_path': inference_ckpt_path,
             'video_path': video_path,
             'audio_path': audio_path,
             'video_out_path': os.path.join(temp_dir, "result.mp4"),
@@ -91,7 +124,14 @@ def handler(event):
         }
         
         # Run inference
-        result_path = run_inference({'input': inference_args})
+        logger.info(f"Starting inference with arguments: {inference_args}")
+        try:
+            result_path = run_inference({'input': inference_args})
+            logger.info(f"Inference completed successfully, result path: {result_path}")
+            logger.info(f"Result file exists: {os.path.exists(result_path)}")
+        except Exception as e:
+            logger.error(f"Error during inference: {str(e)}")
+            raise
         
         # Upload result back to B2
         # Use the same folder as the source video
@@ -110,9 +150,12 @@ def handler(event):
         
     except Exception as e:
         # Clean up on error
+        logger.error(f"Error in handler: {str(e)}")
+        logger.error(f"Error type: {type(e).__name__}")
         if os.path.exists(temp_dir):
+            logger.info(f"Cleaning up temporary directory: {temp_dir}")
             shutil.rmtree(temp_dir)
-        raise Exception(f"Error processing request: {str(e)}") 
+        raise Exception(f"Error processing request: {str(e)}")
     
 if __name__ == '__main__':
     logger.info('Starting RunPod Serverless...')
