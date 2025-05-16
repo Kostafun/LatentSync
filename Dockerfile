@@ -19,6 +19,7 @@ RUN apt update && \
       python3-dev \
       python3-pip \
       python3-venv \
+      python3-tk \
       git \
       git-lfs \
       wget \
@@ -28,6 +29,7 @@ RUN apt update && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/* && \
     apt-get clean -y
+ENV XDG_BIN_HOME=/usr/bin
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install system dependencies
@@ -75,7 +77,9 @@ WORKDIR /workspace
 
 # Copy the project files (.dockerignore will exclude mp3/mp4 files)
 COPY . /workspace/
-
+RUN /usr/bin/uv venv
+RUN source /workspace/.venv/bin/activate
+RUN /usr/bin/uv pip install -r requirements.txt
 #ENV PYTHONPATH="/workspace:${PYTHONPATH}"
 #ENV PATH="/workspace/.venv/bin:${PATH}"
 
