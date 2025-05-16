@@ -60,8 +60,9 @@ def handler(event):
     Returns:
         Dict[str, str]: Dictionary containing the result file URL
     """
-    payload = validate(event, INPUT_SCHEMA)
-    payload=payload['validated_input']
+    payload = validate(event["input"], INPUT_SCHEMA)
+    logger.info(f"Payload: {payload}")
+    #payload=payload['validated_input']
 
     #payload = event['input']
     # Define temp_dir outside try block so it's available in except block
@@ -83,7 +84,8 @@ def handler(event):
         logger.info(f"Temporary directory created successfully: {os.path.exists(temp_dir)}")
         
         # Extract B2 paths from URLs
-        print("payload: {}".format(payload))
+        # logger.info(f"payload: {payload}")
+        # print("payload: {}".format(payload))
         video_b2_path = extract_b2_path(payload['source_video'])
         audio_b2_path = extract_b2_path(payload['source_audio'])
         
