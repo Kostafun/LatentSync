@@ -1,0 +1,8 @@
+services:
+  app:
+    image: kostafun/latentsync:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+
