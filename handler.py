@@ -63,8 +63,9 @@ def handler(event):
     payload = validate(event["input"], INPUT_SCHEMA)
     logger.info(f"Payload: {payload}")
     #payload=payload['validated_input']
-
-    #payload = event['input']
+    if not payload['source_video']:
+        logger.error(f"Failed to get source video, payload is {payload}, event is {event}")
+        raise Exception(f"Failed to get source video, payload is {payload}, event is {event}")
     # Define temp_dir outside try block so it's available in except block
     # Use a directory relative to the current file
     current_dir = os.path.dirname(os.path.abspath(__file__))
