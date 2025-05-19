@@ -61,6 +61,7 @@ def handler(event):
         Dict[str, str]: Dictionary containing the result file URL
     """
     payload = validate(event["input"], INPUT_SCHEMA)
+    payload = event['input']
     logger.info(f"Payload: {payload}")
     #payload=payload['validated_input']
     if not payload['source_video']:
