@@ -57,7 +57,7 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 #     pip3 install -r requirements.txt
 
 # Create necessary directories
-# RUN mkdir -p /root/.cache/torch/hub/checkpoints
+# 
 
 # Download checkpoints from HuggingFace
 #RUN huggingface-cli download ByteDance/LatentSync --local-dir checkpoints --exclude "*.git*" "README.md"
@@ -65,9 +65,6 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 # RUN huggingface-cli download ByteDance/LatentSync whisper/tiny.pt --local-dir checkpoints 
 
 # Create soft links for auxiliary models
-#RUN ln -s /app/checkpoints/auxiliary/2DFAN4-cd938726ad.zip /root/.cache/torch/hub/checkpoints/2DFAN4-cd938726ad.zip && \
-#    ln -s /app/checkpoints/auxiliary/s3fd-619a316812.pth /root/.cache/torch/hub/checkpoints/s3fd-619a316812.pth && \
-#    ln -s /app/checkpoints/auxiliary/vgg16-397923af.pth /root/.cache/torch/hub/checkpoints/vgg16-397923af.pth
 
 # Expose port for Gradio app
 #EXPOSE 7860
@@ -82,6 +79,13 @@ RUN source /workspace/.venv/bin/activate
 RUN /usr/bin/uv pip install -r requirements.txt
 #ENV PYTHONPATH="/workspace:${PYTHONPATH}"
 #ENV PATH="/workspace/.venv/bin:${PATH}"
+
+RUN mkdir -p /root/.cache/torch/hub/checkpoints
+
+RUN ln -s /workspace/checkpoints/auxiliary/2DFAN4-cd938726ad.zip /root/.cache/torch/hub/checkpoints/2DFAN4-cd938726ad.zip && \
+    ln -s /workspace/checkpoints/auxiliary/s3fd-619a316812.pth /root/.cache/torch/hub/checkpoints/s3fd-619a316812.pth && \
+    ln -s /workspace/checkpoints/auxiliary/vgg16-397923af.pth /root/.cache/torch/hub/checkpoints/vgg16-397923af.pth
+
 
 ADD start.sh /start.sh
 
