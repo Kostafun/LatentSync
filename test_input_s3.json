@@ -1,0 +1,7 @@
+{
+  "source_video": "https://my-bucket.s3.us-east-1.amazonaws.com/videos/sample_video.mp4",
+  "source_audio": "https://my-bucket.s3.us-east-1.amazonaws.com/audio/sample_audio.mp3",
+  "face_restore": false,
+  "upscale": 1,
+  "codeformer_fidelity": 0.5
+}

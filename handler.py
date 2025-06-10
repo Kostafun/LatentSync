@@ -1,7 +1,9 @@
 import os
-import uuid
+import datetime
+import random
+import string
 from typing import Dict, Any
-from b2_manager import B2Manager
+from s3_manager import S3Manager, extract_s3_key_from_url
 from scripts.inference import run_inference
 from dotenv import load_dotenv
 import runpod
@@ -26,29 +28,31 @@ logger.info(f"Directory listing of current directory: {os.listdir('.')}")
 
 # Log environment variables (without exposing sensitive values)
 logger.info("=== ENVIRONMENT VARIABLES CHECK ===")
-logger.info(f"RUNPOD_SECRET_BUCKET_NAME exists: {os.getenv('RUNPOD_SECRET_BUCKET_NAME') is not None}")
-logger.info(f"RUNPOD_SECRET_BUCKET_ID exists: {os.getenv('RUNPOD_SECRET_BUCKET_ID') is not None}")
-logger.info(f"RUNPOD_SECRET_BUCKET_KEY_ID exists: {os.getenv('RUNPOD_SECRET_BUCKET_KEY_ID') is not None}")
-logger.info(f"RUNPOD_SECRET_BUCKET_APP_KEY exists: {os.getenv('RUNPOD_SECRET_BUCKET_APP_KEY') is not None}")
+logger.info(f"RUNPOD_SECRET_S3_BUCKET_NAME exists: {os.getenv('RUNPOD_SECRET_S3_BUCKET_NAME') is not None}")
+logger.info(f"RUNPOD_SECRET_S3_ACCESS_KEY_ID exists: {os.getenv('RUNPOD_SECRET_S3_ACCESS_KEY_ID') is not None}")
+logger.info(f"RUNPOD_SECRET_S3_SECRET_ACCESS_KEY exists: {os.getenv('RUNPOD_SECRET_S3_SECRET_ACCESS_KEY') is not None}")
+logger.info(f"RUNPOD_SECRET_S3_REGION exists: {os.getenv('RUNPOD_SECRET_S3_REGION') is not None}")
+logger.info(f"RUNPOD_SECRET_S3_ENDPOINT_URL exists: {os.getenv('RUNPOD_SECRET_S3_ENDPOINT_URL') is not None}")
 
-def setup_b2():
-    """Initialize and return B2Manager instance"""
-    return B2Manager(
-        bucket_name=os.getenv('RUNPOD_SECRET_BUCKET_NAME'),
-        bucket_id=os.getenv('RUNPOD_SECRET_BUCKET_ID'),
-        key_id=os.getenv('RUNPOD_SECRET_BUCKET_KEY_ID'),
-        app_key=os.getenv('RUNPOD_SECRET_BUCKET_APP_KEY')
+def setup_s3():
+    """Initialize and return S3Manager instance"""
+    return S3Manager(
+        bucket_name=os.getenv('RUNPOD_SECRET_S3_BUCKET_NAME'),
+        access_key_id=os.getenv('RUNPOD_SECRET_S3_ACCESS_KEY_ID'),
+        secret_access_key=os.getenv('RUNPOD_SECRET_S3_SECRET_ACCESS_KEY'),
+        region=os.getenv('RUNPOD_SECRET_S3_REGION', 'us-east-1'),
+        endpoint_url=os.getenv('RUNPOD_SECRET_S3_ENDPOINT_URL')
     )
 
-def extract_b2_path(b2_url: str) -> str:
-    """Extract the path from a B2 URL"""
-    # Remove the domain and bucket name from the URL
-    # Example: https://f004.backblazeb2.com/file/bucket-name/path/to/file.mp4
-    # Should return: path/to/file.mp4
-    parts = b2_url.split('/file/')
-    if len(parts) != 2:
-        raise ValueError(f"Invalid B2 URL format: {b2_url}")
-    return parts[1].split('/', 1)[1]
+def generate_unique_filename(extension: str = "") -> str:
+    """Generate unique filename with datetime timestamp and random string"""
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    random_string = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+    
+    if extension and not extension.startswith('.'):
+        extension = '.' + extension
+    
+    return f"{timestamp}_{random_string}{extension}"
 
 def handler(event):
     """
@@ -68,42 +72,49 @@ def handler(event):
         logger.error(f"Failed to get source video, payload is {payload}, event is {event}")
         raise Exception(f"Failed to get source video, payload is {payload}, event is {event}")
     # Define temp_dir outside try block so it's available in except block
-    # Use a directory relative to the current file
+    # Use a directory relative to the current file with unique naming
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    temp_dir = os.path.join(current_dir, "tmp", f"lipsync_{uuid.uuid4()}")
+    unique_session_id = generate_unique_filename()
+    temp_dir = os.path.join(current_dir, "tmp", f"lipsync_{unique_session_id}")
     
     # Log path information
     logger.info(f"Current directory resolved to: {current_dir}")
     logger.info(f"Temporary directory path: {temp_dir}")
     
     try:
-        # Initialize B2 manager
-        b2 = setup_b2()
+        # Initialize S3 manager
+        s3 = setup_s3()
         
         # Create a unique temporary directory
         logger.info(f"Attempting to create temporary directory: {temp_dir}")
         os.makedirs(temp_dir, exist_ok=True)
         logger.info(f"Temporary directory created successfully: {os.path.exists(temp_dir)}")
         
-        # Extract B2 paths from URLs
-        # logger.info(f"payload: {payload}")
-        # print("payload: {}".format(payload))
-        video_b2_path = extract_b2_path(payload['source_video'])
-        audio_b2_path = extract_b2_path(payload['source_audio'])
+        # Extract S3 keys from URLs
+        logger.info(f"Extracting S3 keys from URLs")
+        video_s3_key = extract_s3_key_from_url(payload['source_video'])
+        audio_s3_key = extract_s3_key_from_url(payload['source_audio'])
         
-        # Download files from B2
-        video_path = os.path.join(temp_dir, "video.mp4")
-        audio_path = os.path.join(temp_dir, "audio.mp3")
+        logger.info(f"Video S3 key: {video_s3_key}")
+        logger.info(f"Audio S3 key: {audio_s3_key}")
         
-        logger.info(f"Attempting to download video from B2: {video_b2_path}")
-        if not b2.download_file(video_b2_path, video_path):
-            logger.error(f"Failed to download video file from B2: {video_b2_path}")
+        # Generate unique local filenames
+        video_filename = generate_unique_filename("mp4")
+        audio_filename = generate_unique_filename("mp3")
+        
+        # Download files from S3
+        video_path = os.path.join(temp_dir, video_filename)
+        audio_path = os.path.join(temp_dir, audio_filename)
+        
+        logger.info(f"Attempting to download video from S3: {video_s3_key}")
+        if not s3.download_file(video_s3_key, video_path):
+            logger.error(f"Failed to download video file from S3: {video_s3_key}")
             raise Exception("Failed to download video file")
         logger.info(f"Video download successful, file exists: {os.path.exists(video_path)}")
             
-        logger.info(f"Attempting to download audio from B2: {audio_b2_path}")
-        if not b2.download_file(audio_b2_path, audio_path):
-            logger.error(f"Failed to download audio file from B2: {audio_b2_path}")
+        logger.info(f"Attempting to download audio from S3: {audio_s3_key}")
+        if not s3.download_file(audio_s3_key, audio_path):
+            logger.error(f"Failed to download audio file from S3: {audio_s3_key}")
             raise Exception("Failed to download audio file")
         logger.info(f"Audio download successful, file exists: {os.path.exists(audio_path)}")
         
@@ -115,12 +126,16 @@ def handler(event):
         logger.info(f"Checking if config file exists: {os.path.exists(unet_config_path)}")
         logger.info(f"Checking if checkpoint file exists: {os.path.exists(inference_ckpt_path)}")
         
+        # Generate unique result filename
+        result_filename = generate_unique_filename("mp4")
+        result_local_path = os.path.join(temp_dir, result_filename)
+        
         inference_args = {
             'unet_config_path': unet_config_path,
             'inference_ckpt_path': inference_ckpt_path,
             'video_path': video_path,
             'audio_path': audio_path,
-            'video_out_path': os.path.join(temp_dir, "result.mp4"),
+            'video_out_path': result_local_path,
             'inference_steps': 20,
             'guidance_scale': 1.0,
             'seed': 1247,
@@ -137,19 +152,26 @@ def handler(event):
             logger.error(f"Error during inference: {str(e)}")
             raise
         
-        # Upload result back to B2
-        # Use the same folder as the source video
-        result_b2_path = os.path.dirname(video_b2_path) + "/result.mp4"
+        # Upload result back to S3 with unique filename
+        logger.info(f"Uploading result to S3")
+        upload_success, result_s3_key = s3.upload_file(result_path)
         
-        if not b2.upload_file(result_path, result_b2_path):
-            raise Exception("Failed to upload result file")
+        if not upload_success:
+            raise Exception("Failed to upload result file to S3")
+        
+        logger.info(f"Result uploaded successfully to S3 key: {result_s3_key}")
+        
+        # Generate result URL
+        result_url = s3.get_file_url(result_s3_key, expiration=86400)  # 24 hours expiration
         
         # Clean up temporary directory
+        logger.info(f"Cleaning up temporary directory: {temp_dir}")
         shutil.rmtree(temp_dir)
         
         # Return the result URL
         return {
-            "result_url": f"https://{os.getenv('BUCKET_NAME')}.s3.us-west-002.backblazeb2.com/{result_b2_path}"
+            "result_url": result_url,
+            "s3_key": result_s3_key
         }
         
     except Exception as e:
