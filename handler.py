@@ -64,9 +64,39 @@ def handler(event):
     Returns:
         Dict[str, str]: Dictionary containing the result file URL
     """
-    payload = validate(event["input"], INPUT_SCHEMA)
-    payload = event['input']
-    logger.info(f"Payload: {payload}")
+    # DEBUG: Log the complete event structure received
+    logger.info("=== RUNPOD HANDLER DEBUG ===")
+    logger.info(f"Complete event received: {event}")
+    logger.info(f"Event type: {type(event)}")
+    logger.info(f"Event keys: {list(event.keys()) if isinstance(event, dict) else 'Not a dict'}")
+    
+    # Check if event has 'input' field
+    if isinstance(event, dict):
+        logger.info(f"Event has 'input' field: {'input' in event}")
+        logger.info(f"Event has 'id' field: {'id' in event}")
+        if 'input' in event:
+            logger.info(f"Event['input'] content: {event['input']}")
+            logger.info(f"Event['input'] type: {type(event['input'])}")
+        else:
+            logger.info("Available event fields:")
+            for key, value in event.items():
+                logger.info(f"  {key}: {type(value)} = {value}")
+    
+    # Try to extract payload with error handling
+    try:
+        if 'input' in event:
+            payload = validate(event["input"], INPUT_SCHEMA)
+            payload = event['input']
+            logger.info(f"Successfully extracted payload from event['input']: {payload}")
+        else:
+            # Maybe the entire event IS the input payload
+            logger.info("No 'input' field found, trying to use entire event as payload")
+            payload = validate(event, INPUT_SCHEMA)
+            logger.info(f"Successfully validated entire event as payload: {payload}")
+    except Exception as e:
+        logger.error(f"Failed to extract/validate payload: {str(e)}")
+        logger.error(f"Error type: {type(e).__name__}")
+        raise Exception(f"Failed to get job. | Error Type: {type(e).__name__} | Error Message: {str(e)}")
     #payload=payload['validated_input']
     if not payload['source_video']:
         logger.error(f"Failed to get source video, payload is {payload}, event is {event}")
