@@ -184,7 +184,7 @@ def handler(event):
         
         # Upload result back to S3 with unique filename
         logger.info(f"Uploading result to S3")
-        upload_success, result_s3_key = s3.upload_file(result_path)
+        upload_success, result_s3_key = s3.upload_file(result_path, video_s3_key.replace('.mp4', "_result.mp4"))
         
         if not upload_success:
             raise Exception("Failed to upload result file to S3")
@@ -192,7 +192,7 @@ def handler(event):
         logger.info(f"Result uploaded successfully to S3 key: {result_s3_key}")
         
         # Generate result URL
-        result_url = s3.get_file_url(result_s3_key, expiration=86400)  # 24 hours expiration
+        result_url = s3.get_file_url(result_s3_key, expiration=86400*31)  # month-long expiration
         
         # Clean up temporary directory
         logger.info(f"Cleaning up temporary directory: {temp_dir}")
