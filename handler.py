@@ -169,7 +169,7 @@ def handler(event):
             'inference_steps': 20,
             'guidance_scale': 1.0,
             'seed': 1247,
-            'start_frame': 0
+            'start_frame': payload.get('start_frame', 0)
         }
         
         # Run inference

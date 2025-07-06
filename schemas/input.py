@@ -22,6 +22,11 @@ INPUT_SCHEMA = {
         'required': False,
         'default': 0.5
     },
+    'start_frame': {
+        'type': int,
+        'required': False,
+        'default': 0
+    }
     # 'output_format': {
     #     'type': str,
     #     'required': False,
